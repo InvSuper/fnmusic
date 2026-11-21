@@ -43,5 +43,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if ! gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release create "$TAG" -R "$GITHUB_REPOSITORY" --verify-tag --title "$TAG" --generate-notes
+            notes=(--generate-notes)
+            if [[ -f CHANGELOG.md ]]; then
+              awk -v heading="## ${TAG#v}" '
+                /^## / { inside = ($0 == heading); next }
+                inside
+              ' CHANGELOG.md | sed '/./,$!d' > "$RUNNER_TEMP/notes.md"
+              if [[ -s "$RUNNER_TEMP/notes.md" ]]; then
+                notes=(--notes-file "$RUNNER_TEMP/notes.md")
+              fi
+            fi
+            gh release create "$TAG" -R "$GITHUB_REPOSITORY" --verify-tag --title "$TAG" "${notes[@]}"
           fi
