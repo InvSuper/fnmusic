@@ -103,6 +103,8 @@ type Catalog struct {
 	SearchAlbums, SearchArtists *paging.Pager[pluginapi.Playlist]
 	Albums, Artists, Genres     *paging.Pager[pluginapi.Playlist]
 	ArtistAlbums                map[int64]*paging.Pager[pluginapi.Playlist]
+	discoveryPreviews           map[string]*paging.Pager[pluginapi.Track]
+	discoveryRefreshing         bool
 
 	LibrarySort, FavoriteSort, AlbumSort, AlbumDetailSort string
 	ArtistSort, ArtistTrackSort, ArtistAlbumSort          string
@@ -321,7 +323,7 @@ func (c *Catalog) ListForRoute(id int64, kind, ref string) *List {
 		return nil
 	}
 	if meta.Name != "" {
-		l.Name, l.Sub, l.CoverURL = meta.Name, meta.Sub, meta.Cover()
+		l.Name, l.Sub, l.CoverURL = playlistDisplayName(meta), meta.Sub, meta.Cover()
 	}
 	c.Lists[id] = l
 	return l
@@ -462,6 +464,7 @@ func (c *Catalog) GenresList() *paging.Pager[pluginapi.Playlist] {
 
 func (c *Catalog) activate(ctx context.Context) {
 	c.scope = ctx
+	c.discoveryRefreshing = false
 	for _, list := range c.Lists {
 		if list.Pages != nil {
 			list.Pages.SetScope(ctx)
@@ -471,6 +474,9 @@ func (c *Catalog) activate(ctx context.Context) {
 		c.SearchList.Pages.SetScope(ctx)
 	}
 	for _, p := range c.ArtistAlbums {
+		p.SetScope(ctx)
+	}
+	for _, p := range c.discoveryPreviews {
 		p.SetScope(ctx)
 	}
 	for _, p := range []*paging.Pager[pluginapi.Playlist]{c.Albums, c.Artists, c.Genres, c.SearchAlbums, c.SearchArtists} {

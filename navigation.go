@@ -2,9 +2,11 @@ package fnmusic
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
+	"github.com/waygu-music-plugin/sdk/pluginapi"
 
 	backend "github.com/waygu-music-plugin/fnmusic/internal/client"
 )
@@ -38,6 +40,7 @@ func (h *Home) sidebar(c *ui.Context) {
 		}
 	})
 	ui.Scroll(c.Key("fnmusic-nav")).TrackScroll(&h.navScroll).Grow(1).Margin(0, -6).Padding(0, 6).Gap(4).Children(func() {
+		var playlists []pluginapi.Playlist
 		if h.state.Connecting() {
 			h.sidebarLoading(c)
 		} else if !h.state.Connected() {
@@ -53,13 +56,22 @@ func (h *Home) sidebar(c *ui.Context) {
 			h.navItem(c, iconHeart, "我喜欢", FavoritesRoute())
 			h.navItem(c, iconClock, "最近播放", Route{Page: PagePlaylist, ID: backend.RecentID})
 			h.navItem(c, iconRadio, "漫游", Route{Page: PageRoam})
+			playlists = h.state.Playlists()
+			if slices.ContainsFunc(playlists, func(pl pluginapi.Playlist) bool {
+				return playlistGroup(pl.Ref) != personalPlaylist
+			}) {
+				h.navItem(c, iconCharts, "在线发现", Route{Page: PageDiscover})
+			}
 		}
 		if h.route.Page == PageSearch || h.route.Page == PageSearchAlbums || h.route.Page == PageSearchArtists {
 			h.navItem(c, iconSearch, "搜索结果", h.route)
 		}
 		if h.state.Connected() {
 			playlistHeader(c, func() { h.RequestNewPlaylist(nil) })
-			for _, pl := range h.state.Playlists() {
+			for _, pl := range playlists {
+				if playlistGroup(pl.Ref) != personalPlaylist {
+					continue
+				}
 				r := Route{Page: PagePlaylist, ID: pl.ID}
 				h.playlistItem(c, fmt.Sprintf("fnmusic-playlist-%d", pl.ID), pl, h.route == r, func(m *ui.Menu) { h.playlistMenu(m, pl) }, func() {
 					h.navigate(r)

@@ -38,7 +38,7 @@ func (h *Home) trackMenu(m *ui.Menu, tr *pluginapi.Track, pid int64) {
 		if sub.Item("新建歌单…").Chosen() {
 			h.RequestNewPlaylist([]pluginapi.Track{*tr})
 		}
-		for _, pl := range h.state.Playlists() {
+		for _, pl := range h.state.personalPlaylists() {
 			if pl.ID != pid && sub.Item(pl.Name).Chosen() {
 				h.RequestAddTracks(pl, []pluginapi.Track{*tr})
 			}
@@ -63,7 +63,7 @@ func (h *Home) trackMenu(m *ui.Menu, tr *pluginapi.Track, pid int64) {
 			}()
 		}
 	}
-	if pl, ok := h.state.Playlist(pid); ok && h.route.Page == PagePlaylist && h.route.ID == pid {
+	if pl, ok := h.state.Playlist(pid); ok && playlistGroup(pl.Ref) == personalPlaylist && h.route.Page == PagePlaylist && h.route.ID == pid {
 		if m.Item("从歌单中移除").Chosen() {
 			h.RequestRemoveTrack(pl, *tr)
 		}
@@ -74,7 +74,7 @@ func (h *Home) listMenu(m *ui.Menu, l *List) {
 	if l == nil {
 		return
 	}
-	if pl, ok := h.state.Playlist(l.ID); ok && l.Spec.Kind == ListPlaylist {
+	if pl, ok := h.state.Playlist(l.ID); ok && playlistGroup(pl.Ref) == personalPlaylist && l.Spec.Kind == ListPlaylist {
 		h.playlistMenu(m, pl)
 		m.Separator()
 	}
@@ -83,7 +83,7 @@ func (h *Home) listMenu(m *ui.Menu, l *List) {
 			if sub.Item("新建歌单…").Chosen() {
 				h.RequestNewPlaylistFrom(l)
 			}
-			for _, pl := range h.state.Playlists() {
+			for _, pl := range h.state.personalPlaylists() {
 				if sub.Item(pl.Name).Chosen() {
 					h.RequestAddList(pl, l)
 				}

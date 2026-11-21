@@ -202,6 +202,8 @@ func (h *Home) Content(c *ui.Context) {
 		h.folderPage(c)
 	case PageGenres:
 		h.genrePage(c)
+	case PageDiscover:
+		h.discoverPage(c)
 	default:
 		h.listPage(c)
 	}
@@ -223,6 +225,8 @@ func (h *Home) connectionLoading(c *ui.Context) {
 		}
 	case PageRoam:
 		h.roamSkeleton(c)
+	case PageDiscover:
+		h.platformCardsSkeleton(c, CardView{})
 	default:
 		var l *List
 		id := h.route.ID

@@ -311,7 +311,7 @@ func (h *Home) folderMenu(m *ui.Menu, folderPath string, deleted, current bool) 
 		m.Separator()
 	}
 	m.Submenu("全部添加到歌单", func(sub *ui.Menu) {
-		for _, pl := range h.state.Playlists() {
+		for _, pl := range h.state.personalPlaylists() {
 			if sub.Item(pl.Name).Chosen() {
 				h.addFolderToPlaylist(folderPath, pl)
 			}
