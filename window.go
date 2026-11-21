@@ -23,7 +23,12 @@ func Start(start pluginapi.Startup) pluginapi.Adapter {
 			adapter.state.activate(ctx)
 			adapter.home.ResetNavigation(Route{Page: PageLibrary})
 		},
-		Ready: adapter.connectOnActivation,
+		Ready: func(event pluginapi.Activation) {
+			if event.Main != nil {
+				adapter.home.fullscreen.bind(event.Main, adapter.home.host.Invalidate)
+			}
+			adapter.connectOnActivation(event)
+		},
 		Deactivate: func(switching bool) {
 			adapter.home.CloseTransient()
 			if switching {
