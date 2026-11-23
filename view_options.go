@@ -27,6 +27,14 @@ type TrackView struct {
 	Liked          func(int64) bool
 	Favorite       func(pluginapi.Track, bool)
 	ShowAlbum      bool
+	// Indices shows only these positions of the pager, in this order. OnPlay
+	// receives the position in Indices, not the pager index.
+	Indices []int
+	// Empty replaces the "no songs" text when a filtered view matches nothing.
+	Empty string
+	// OnClearFilter, when set, adds a button to the empty state that drops the
+	// filter and shows every row again.
+	OnClearFilter func()
 }
 
 type CardView struct {

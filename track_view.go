@@ -31,16 +31,36 @@ func (h *Home) renderTracks(c *ui.Context, l *paging.Pager[pluginapi.Track], vie
 		return
 	}
 	total := l.Len()
+	get := l.At
+	if view.Indices != nil {
+		indices := view.Indices
+		total = len(indices)
+		get = func(i int) *pluginapi.Track {
+			if i < 0 || i >= len(indices) {
+				return nil
+			}
+			return l.At(indices[i])
+		}
+	}
 	if total == 0 {
-		h.centered(c, "这里还没有歌曲", nil)
+		empty := view.Empty
+		if empty == "" {
+			empty = "这里还没有歌曲"
+		}
+		if view.Indices != nil && view.Header != nil {
+			// A filter that matches nothing still shows its header: the query
+			// stays visible and can be changed or cleared from here.
+			h.emptyFilteredTracks(c, view, empty)
+			return
+		}
+		h.centered(c, empty, nil)
 		return
 	}
 	if !h.platformHeroReady(c, view.Cover) {
 		h.platformTrackSkeleton(c, view)
 		return
 	}
-	h.prefetchTrackArtwork(l, total, c)
-	get := l.At
+	h.prefetchTrackArtwork(get, total, c)
 	play := view.OnPlay
 	if play == nil {
 		play = func(int) {}
@@ -77,16 +97,13 @@ func (h *Home) platformHeroReady(c *ui.Context, cover string) bool {
 	return false
 }
 
-func (h *Home) prefetchTrackArtwork(l *paging.Pager[pluginapi.Track], total int, c *ui.Context) {
-	if l == nil {
-		return
-	}
+func (h *Home) prefetchTrackArtwork(get func(int) *pluginapi.Track, total int, c *ui.Context) {
 	_, height := c.Size()
 	count := max(12, int(height/54)+6)
 	count = min(count, total)
 	urls := make([]string, 0, count)
 	for i := 0; i < count; i++ {
-		if tr := l.At(i); tr != nil {
+		if tr := get(i); tr != nil {
 			urls = append(urls, tr.Album.PicURL)
 		}
 	}
@@ -172,11 +189,18 @@ func (h *Home) providerTrackRow(c *ui.Context, i int, tr *pluginapi.Track, cur *
 	}
 	hovered := row.Hovered()
 	bg := ui.Transparent
-	switch {
-	case playing:
-		bg = p.accent.Alpha(0.09)
-	case hovered:
-		bg = p.hover
+	if h.libraryFlashID == tr.ID && c.Now().Before(h.libraryFlashUntil) {
+		// The row just located keeps a brighter tint for a moment so the eye
+		// finds it at the end of a long jump.
+		bg = p.accent.Alpha(0.22)
+		c.After(h.libraryFlashUntil.Sub(c.Now()))
+	} else {
+		switch {
+		case playing:
+			bg = p.accent.Alpha(0.09)
+		case hovered:
+			bg = p.hover
+		}
 	}
 	row.Background(row.AnimateColor("bg", bg, ui.Animation{Duration: 100 * time.Millisecond}))
 	if !tr.Playable() {

@@ -30,6 +30,16 @@ type Home struct {
 
 	searchInput ui.Handle
 
+	// librarySearch filters the library rows in place; playing a filtered row
+	// still starts from its position in the whole library.
+	librarySearch      string
+	librarySearchInput ui.Handle
+	libraryWholeOn     bool
+	libraryWholeFor    string
+	libraryLocate      bool
+	libraryFlashID     int64
+	libraryFlashUntil  time.Time
+
 	// form survives rebuilds of the settings window, as text input state must
 	// belong to the platform view rather than a local render closure.
 	formAddress, formUser, formPassword string
@@ -141,6 +151,11 @@ func (h *Home) Open(route Route) {
 
 func (h *Home) openRoute(route Route) {
 	h.route = route
+	if route.Page != PageLibrary {
+		h.librarySearch = ""
+		h.libraryWholeOn, h.libraryWholeFor = false, ""
+		h.libraryLocate = false
+	}
 	if route.Page == PageSearch && h.state != nil {
 		if err := h.state.Catalog().Search(route.Query); err != nil {
 			h.state.SetError(err)

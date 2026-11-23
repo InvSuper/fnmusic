@@ -2,13 +2,13 @@ package fnmusic
 
 import (
 	"fmt"
-	"strings"
 	backend "github.com/waygu-music-plugin/fnmusic/internal/client"
+	"strings"
 
 	"github.com/egoist/mygo/ui"
 )
 
-func (h *Home) listHeader(c *ui.Context, l *List) {
+func (h *Home) listHeader(c *ui.Context, l *List, matches []int) {
 	t := c.Theme()
 	ui.Row(c).Gap(28).AlignItems(ui.End).Padding(0, 0, 26, 0).Children(func() {
 		if l.Spec.Kind == ListGenre && l.CoverURL == "" {
@@ -30,6 +30,9 @@ func (h *Home) listHeader(c *ui.Context, l *List) {
 			if l.Pages.Total() >= 0 {
 				meta = append(meta, fmt.Sprintf("%d 首", l.Pages.Total()))
 			}
+			if matches != nil {
+				meta = append(meta, fmt.Sprintf("匹配 %d 首", len(matches)))
+			}
 			if len(meta) > 0 {
 				ui.Text(c, strings.Join(meta, " · ")).FontSize(13).TextColor(t.TextMuted)
 			}
@@ -46,6 +49,9 @@ func (h *Home) listHeader(c *ui.Context, l *List) {
 				}
 				h.moreButton(c, "fnmusic-list-more", func(m *ui.Menu) { h.listMenu(m, l) })
 				ui.Box(c).Grow(1)
+				if l.Spec.Kind == ListLibrary {
+					h.librarySearchField(c)
+				}
 				if control, ok := h.listSort(l); ok {
 					control.button(c, "fnmusic-list-sort")
 				}
@@ -126,14 +132,28 @@ func (h *Home) listPage(c *ui.Context) {
 		l = h.state.Catalog().ListFor(backend.LibraryID)
 	}
 	if l != nil && l.Pages != nil {
-		h.renderTracks(c, l.Pages, TrackView{
+		var matches []int
+		if l.Spec.Kind == ListLibrary {
+			var all bool
+			matches, all = h.libraryMatches(l)
+			h.libraryLocatePending(c, l, matches, all)
+		}
+		view := TrackView{
 			Title: l.Name, Sub: l.Kind, Cover: listHeroCover(l),
-			OnPlay: func(i int) { PlayList(h.host.Player(), l, i) },
+			OnPlay: func(i int) {
+				if matches != nil {
+					if i >= 0 && i < len(matches) {
+						PlayList(h.host.Player(), l, matches[i])
+					}
+					return
+				}
+				PlayList(h.host.Player(), l, i)
+			},
 			Header: func(c *ui.Context) {
 				if l.Spec.Kind == ListArtist {
 					h.artistListHeader(c, l)
 				} else {
-					h.listHeader(c, l)
+					h.listHeader(c, l, matches)
 				}
 			},
 			HeaderSkeleton: func(c *ui.Context) {
@@ -149,7 +169,21 @@ func (h *Home) listPage(c *ui.Context) {
 			// Keep the same wide-row album metadata as the archived Feiniu
 			// list; the shared renderer only hides it on narrow windows.
 			ShowAlbum: l.Spec.Kind != ListAlbum && l.Spec.Kind != ListArtist,
-		})
+		}
+		if matches != nil {
+			view.Indices = matches
+			view.Empty = "没有找到匹配的歌曲"
+			view.OnClearFilter = func() {
+				h.librarySearch = ""
+				h.libraryWholeOn, h.libraryWholeFor = false, ""
+				h.libraryLocate = false
+				h.host.Invalidate()
+			}
+		}
+		h.renderTracks(c, l.Pages, view)
+		if l.Spec.Kind == ListLibrary && (matches == nil || len(matches) > 0) {
+			h.libraryFloatingActions(c)
+		}
 	} else {
 		fallback := h.routeListSkeleton()
 		h.platformTrackSkeleton(c, TrackView{
@@ -203,6 +237,9 @@ func (h *Home) listHeaderSkeleton(c *ui.Context, l *List) {
 				bone(c, 18).Size(120, 36)
 				bone(c, 17).Size(34, 34)
 				ui.Box(c).Grow(1)
+				if l != nil && l.Spec.Kind == ListLibrary {
+					bone(c, 9).Size(200, 32)
+				}
 				if _, ok := h.listSort(l); ok {
 					bone(c, 15).Height(30).Width(126)
 				}
